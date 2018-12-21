@@ -1,0 +1,10 @@
+## Interface: 80000
+## Title: Bloody Notes
+## Notes: Your combat notebook.
+## Author: glub@terokkar
+## Version: 0.1
+## SavedVariables: BloodyNotesDB
+## OptionalDeps: Ace3
+## X-Embeds: Ace3
+embeds.xml
+BloodyNotes.lua
