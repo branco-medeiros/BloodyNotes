@@ -1,6 +1,6 @@
 ## Interface: 80000
 ## Title: Bloody Notes
-## Notes: Your combat notebook.
+## Notes: Your bloody combat notebook.
 ## Author: glub@terokkar
 ## Version: 0.1
 ## SavedVariables: BloodyNotesDB
