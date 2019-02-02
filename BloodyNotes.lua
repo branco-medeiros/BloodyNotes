@@ -172,96 +172,16 @@ function bn:InitNotesWindow()
   window:AddChild(notes)
   self.NotesDropdown = notes
 
-  --[[
-  local grp = CreateFrame("Frame", nil, window.frame)
-  local pos = window.frame:GetTop() - notes.frame:GetBottom() + 8
-  grp:SetPoint("TOPLEFT", 12, -pos)
-  grp:SetPoint("BOTTOMRIGHT", -12, 12)
-  self:Print("ScrollFrame.top:", grp:GetTop())
-  grp:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background" })
-  grp:SetBackdropColor( 0.616, 0.149, 0.114, 0.9)
-  self.ScrollContainer = grp
-
-
-  -- the message frame
-  local MAX_LINES = 500
-
-  local msg = CreateFrame("ScrollingMessageFrame", nil, grp)
-  msg:SetPoint("TOPLEFT", 8, 0)
-  msg:SetPoint("BOTTOMRIGHT", -24, 8)
-  msg:SetInsertMode(SCROLLING_MESSAGE_FRAME_INSERT_MODE_TOP)
-  msg:SetMaxLines(MAX_LINES)
-  msg:SetFading(false)
-  msg:SetIndentedWordWrap(true)
-  msg:SetFontObject(ChatFontNormal)
-  msg:SetJustifyH("LEFT")
-  
-  
-  -- the scroll bar
-  local scroll = CreateFrame("ScrollFrame", nil, grp, "FauxScrollFrameTemplate")
-  scroll:SetPoint("TOPLEFT", 8, 0)
-  scroll:SetPoint("BOTTOMRIGHT", -24, 8)
-
-  function scroll:OnUpdate()
-    local offset = FauxScrollFrame_GetOffset(self)
-    msg:SetScrollOffset(offset)
-    FauxScrollFrame_Update(self, MAX_LINES, 25, 12 )
-  end
-
-  function scroll:OnVerticalScroll(offset)
-    FauxScrollFrame_OnVerticalScroll(self, offset, 12, scroll.OnUpdate)
-  end
-
-  scroll:SetScript("OnVerticalScroll", scroll.OnVerticalScroll) 
-
-
-  self.MessageFrame = msg
-  self.ScrollFrame = scroll
-  ]]
-
-  --[[
-  local html = CreateFrame("SimpleHtml", nil, window.frame)
-  local pos = window.frame:GetTop() - notes.frame:GetBottom() + 8
-  html:SetPoint("TOPLEFT", 12, -pos)
-  --SimpleHtml needs a width to properly wrap text
-  html:SetWidth(window.frame:GetWidth()-24) --, window.frame:GetHeight() - pos - 12)
-  --html:SetPoint("BOTTOMRIGHT", -12, 12)
-  html:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background" })
-  html:SetBackdropColor( 0.616, 0.149, 0.114, 0.9)
-
-  local f, s = GameFontNormal:GetFont()
-  html:SetFont(f, s)
-  html:SetIndentedWordWrap("P", true)
-  html:SetJustifyH("p", "LEFT")
-
-  html:SetFont("h1", f, s*1.6)
-  html:SetJustifyH("h1", "CENTER")
-
-  html:SetFont("h2", f, s*1.4)
-  html:SetJustifyH("h2", "LEFT")
-
-  html:SetFont("h3", f, s*1.2)
-  html:SetJustifyH("h2", "LEFT")
-
-
-  self:Print("Html size:", html:GetWidth(), html:GetHeight())
-  self.Html = html
---]]
-
----[[
+ 
   local grp = CreateFrame("Frame", nil, window.frame) 
   local pos = window.frame:GetTop() - notes.frame:GetBottom() + 8
   grp:SetPoint("TOPLEFT", 12, -pos)
   grp:SetPoint("BOTTOMRIGHT", -12, 12)
-  --SetBorder(grp, 1, 1, 1, 0.5)
-  --grp:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background" })
-  --grp:SetBackdropColor( 0.616, 0.149, 0.114, 0.9)
 
 --scrollframe 
   scroll = CreateFrame("ScrollFrame", nil, grp) 
   scroll:SetPoint("TOPLEFT", 2, -2) 
   scroll:SetPoint("BOTTOMRIGHT", -18, 2) 
-  SetBorder(scroll, 1, 0.5, 0.5, 0.5, 1)
   self.ScrollFrame = scroll 
 
   --scrollbar 
