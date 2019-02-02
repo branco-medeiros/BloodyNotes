@@ -35,8 +35,26 @@ local config = LibStub("AceConfig-3.0")
 local configDlg = LibStub("AceConfigDialog-3.0")
 local configCmd = LibStub("AceConfigCmd-3.0")
 
+local MAX_LINES = 200
 
 BLOODY = bn
+
+
+local function SetBorder(this, size, r, g, b, alpha)
+  r = r or 0
+  g = g or 0
+  b = b or 0
+  alpha = alpha or 1
+  if not size or size == 0 then
+    this:SetBackdrop({edgeFile = nil, edgeSize = 0})
+  else
+    this.edge = [[Interface\Buttons\WHITE8X8]]
+    this:SetBackdrop({edgeFile= this.edge, edgeSize=size})
+    this:SetBackdropBorderColor(r, g, b, alpha)
+  end --if
+  return this
+
+end
 
 local function OnCommand(text)
   return bn:OnCommand(text)
@@ -201,15 +219,86 @@ function bn:InitNotesWindow()
   self.ScrollFrame = scroll
   ]]
 
+  --[[
   local html = CreateFrame("SimpleHtml", nil, window.frame)
   local pos = window.frame:GetTop() - notes.frame:GetBottom() + 8
   html:SetPoint("TOPLEFT", 12, -pos)
-  html:SetPoint("BOTTOMRIGHT", -12, 12)
+  --SimpleHtml needs a width to properly wrap text
+  html:SetWidth(window.frame:GetWidth()-24) --, window.frame:GetHeight() - pos - 12)
+  --html:SetPoint("BOTTOMRIGHT", -12, 12)
   html:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background" })
   html:SetBackdropColor( 0.616, 0.149, 0.114, 0.9)
-  html:SetFontObject("GameFontNormal")
-  self.Html = html
 
+  local f, s = GameFontNormal:GetFont()
+  html:SetFont(f, s)
+  html:SetIndentedWordWrap("P", true)
+  html:SetJustifyH("p", "LEFT")
+
+  html:SetFont("h1", f, s*1.6)
+  html:SetJustifyH("h1", "CENTER")
+
+  html:SetFont("h2", f, s*1.4)
+  html:SetJustifyH("h2", "LEFT")
+
+  html:SetFont("h3", f, s*1.2)
+  html:SetJustifyH("h2", "LEFT")
+
+
+  self:Print("Html size:", html:GetWidth(), html:GetHeight())
+  self.Html = html
+--]]
+
+---[[
+  local grp = CreateFrame("Frame", nil, window.frame) 
+  local pos = window.frame:GetTop() - notes.frame:GetBottom() + 8
+  grp:SetPoint("TOPLEFT", 12, -pos)
+  grp:SetPoint("BOTTOMRIGHT", -12, 12)
+  --SetBorder(grp, 1, 1, 1, 0.5)
+  --grp:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background" })
+  --grp:SetBackdropColor( 0.616, 0.149, 0.114, 0.9)
+
+--scrollframe 
+  scroll = CreateFrame("ScrollFrame", nil, grp) 
+  scroll:SetPoint("TOPLEFT", 2, -2) 
+  scroll:SetPoint("BOTTOMRIGHT", -18, 2) 
+  SetBorder(scroll, 1, 0.5, 0.5, 0.5, 1)
+  self.ScrollFrame = scroll 
+
+  --scrollbar 
+  scrollbar = CreateFrame("Slider", nil, scroll, "UIPanelScrollBarTemplate") 
+  scrollbar:SetPoint("TOPRIGHT", grp, 0, -16) 
+  scrollbar:SetPoint("BOTTOMRIGHT", grp, 0, 16) 
+  scrollbar:SetMinMaxValues(1, MAX_LINES) 
+  scrollbar:SetValueStep(1) 
+  scrollbar.scrollStep = 1 
+  scrollbar:SetValue(0) 
+  scrollbar:SetWidth(16) 
+  scrollbar:SetScript("OnValueChanged", function(f, value) scroll:SetVerticalScroll(value) end)
+  scrollbar:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background" })
+  scrollbar:SetBackdropColor( 0.5, 0.5, 0.5, 0.5)
+  scroll.Scrollbar = scrollbar 
+
+  --content frame 
+  
+  local msg = CreateFrame("ScrollingMessageFrame", nil, scroll)
+  msg:SetInsertMode(SCROLLING_MESSAGE_FRAME_INSERT_MODE_BOTTOM)
+  msg:SetMaxLines(MAX_LINES)
+  msg:SetFading(false)
+  msg:SetIndentedWordWrap(true)
+  msg:SetFontObject(ChatFontNormal)
+  msg:SetJustifyH("LEFT")
+  self.MessageFrame = msg
+  msg:SetOnDisplayRefreshedCallback(
+    function()
+      bn:ResizeMessageFrame()
+    end
+  )
+  msg:SetSize(scroll:GetWidth(), 0)
+  scroll:SetScrollChild(msg)
+
+  self:ClearMessageFrame()
+
+--]]
   --self:MakeSpecialFrame(window.frame, ADDON_GLOBAL_WINDOW)
 
   return self
@@ -223,6 +312,49 @@ function bn:InitEditWindow()
 
 end
 
+function bn:GetMessageFrameHeight()
+  local height = 0
+  local msg = self.MessageFrame
+  local lc = 0
+  local height = 0
+  for n, v in pairs(msg.visibleLines) do
+    if v:IsShown() then
+      height = height + v:GetHeight()
+      lc = lc + 1  
+    end
+  end
+  height = ceil(height)
+  self:Print("height", height, "lc", lc)
+  return height, lc
+end
+
+function bn:ClearMessageFrame()
+  local msg = self.MessageFrame
+  msg:Clear()
+  local f, s = msg:GetFont()
+  msg:SetHeight(MAX_LINES * s)
+
+  local sb = self.ScrollFrame.Scrollbar
+  sb:SetMinMaxValues(1, 1) 
+  sb:SetValue(0) 
+end
+
+function bn:ResizeMessageFrame()
+  local msg = self.MessageFrame
+  local prev = msg.PrevHeight
+  local height, lc = self:GetMessageFrameHeight()
+  if height ~= prev then
+    msg.PrevHeight = height
+    msg:SetHeight(height)
+  end
+ 
+  local sb = self.ScrollFrame.Scrollbar
+  sb:SetMinMaxValues(1, max(1, lc)) 
+  sb:SetValue(0) 
+  
+end
+
+
 
 function bn:MakeSpecialFrame(frame, name)
   --makes window closeable with ESC
@@ -233,7 +365,7 @@ function bn:MakeSpecialFrame(frame, name)
 end
 
 
-function bn:InitNotesWindowRef()
+function bn:TestScrollableWindow1()
     local backdrop = {
       bgFile = "Interface/BUTTONS/WHITE8X8",
       edgeFile = "Interface/GLUES/Common/Glue-Tooltip-Border",
@@ -262,6 +394,7 @@ function bn:InitNotesWindowRef()
   f:SetFrameStrata("BACKGROUND")
   f:SetBackdrop(backdrop)
   f:SetBackdropColor(0, 0, 0)
+
   f.Close = CreateFrame("Button", "$parentClose", f)
   f.Close:SetSize(24, 24)
   f.Close:SetPoint("TOPRIGHT")
@@ -271,6 +404,7 @@ function bn:InitNotesWindowRef()
   f.Close:SetScript("OnClick", function(self)
       self:GetParent():Hide()
   end)
+
   f.Messages = CreateFrame("ScrollingMessageFrame", "$parentMessages", f)
   f.Messages:SetPoint("TOPLEFT", 15, -25)
   f.Messages:SetPoint("BOTTOMRIGHT", -30, 15)
@@ -280,6 +414,7 @@ function bn:InitNotesWindowRef()
   f.Messages:SetIndentedWordWrap(true)
   f.Messages:SetFontObject(ChatFontNormal)
   f.Messages:SetJustifyH("LEFT")
+
   f.Scroll = CreateFrame("ScrollFrame", "$parentScroll", f, "FauxScrollFrameTemplate")
   f.Scroll:SetPoint("TOPLEFT", 15, -25)
   f.Scroll:SetPoint("BOTTOMRIGHT", -30, 15)
@@ -297,7 +432,60 @@ function bn:InitNotesWindowRef()
       FauxScrollFrame_Update(f.Scroll, i, 30, 12 )
   end
 
-end -- bn:InitNotesWindow
+end -- bn:TestScrollableWindow
+
+function bn:TestScrollableWindow2()
+  --parent frame 
+  local frame = CreateFrame("Frame", "MyFrame", UIParent) 
+  frame:SetSize(150, 200) 
+  frame:SetPoint("CENTER") 
+  local texture = frame:CreateTexture() 
+  texture:SetAllPoints() 
+  texture:SetTexture(1,1,1,1) 
+  frame.background = texture 
+
+  --scrollframe 
+  scrollframe = CreateFrame("ScrollFrame", nil, frame) 
+  scrollframe:SetPoint("TOPLEFT", 10, -10) 
+  scrollframe:SetPoint("BOTTOMRIGHT", -10, 10) 
+  local texture = scrollframe:CreateTexture() 
+  texture:SetAllPoints() 
+  texture:SetTexture(.5,.5,.5,1) 
+  frame.scrollframe = scrollframe 
+
+  --scrollbar 
+  scrollbar = CreateFrame("Slider", nil, scrollframe, "UIPanelScrollBarTemplate") 
+  scrollbar:SetPoint("TOPLEFT", frame, "TOPRIGHT", 4, -16) 
+  scrollbar:SetPoint("BOTTOMLEFT", frame, "BOTTOMRIGHT", 4, 16) 
+  scrollbar:SetMinMaxValues(1, 200) 
+  scrollbar:SetValueStep(1) 
+  scrollbar.scrollStep = 1 
+  scrollbar:SetValue(0) 
+  scrollbar:SetWidth(16) 
+  scrollbar:SetScript("OnValueChanged", 
+    function (self, value) 
+      self:GetParent():SetVerticalScroll(value) 
+    end
+  ) 
+  local scrollbg = scrollbar:CreateTexture(nil, "BACKGROUND") 
+  scrollbg:SetAllPoints(scrollbar) 
+  scrollbg:SetTexture(0, 0, 0, 0.4) 
+  frame.scrollbar = scrollbar 
+
+  --content frame 
+  local content = CreateFrame("Frame", nil, scrollframe) 
+  content:SetSize(128, 128) 
+  local texture = content:CreateTexture() 
+  texture:SetAllPoints() 
+  texture:SetTexture("Interface\\GLUES\\MainMenu\\Glues-BlizzardLogo") 
+  content.texture = texture 
+  scrollframe.content = content 
+
+  scrollframe:SetScrollChild(content)
+
+
+end
+
 
 function bn:CreateDialog(Options)
   local name = Options.Name
