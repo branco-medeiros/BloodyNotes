@@ -1,22 +1,17 @@
--- DONE: Create Main Window
--- TODO: Create Tree for categories and pages in Main Window
--- TODO: Create Editor frame in Main Window
--- TODO: Create buttons to add pages and catategories
--- TODO: Create popup menu in Main Window Tree for categories and pages to rename/delete/change category
--- TODO: Create button to save current text being edited
--- TODO: Create Handler to page click
--- TODO: Create Handler to page delete
--- TODO: Create Handler to page rename
--- TODO: Create Handler to page change category
--- TODO: Create Handler to category delete
--- TODO: Create Handler to category rename
+--[[
 
--- TODO: Create Notes Window 
--- TODO: Create category dropdown in Notes Window
--- TODO: Creeate page dropdown in Notes Window
--- TODO: Create "hide" button in Notes Window
--- TODO: Create "edit" button in Notes Window
--- TODO: Create animation to hide Notes Windown and show ShowNotes button
+
+]]
+
+
+-- TODO: Create Notes Window
+-- TODO: Create Dropdown for Categories (with Add New... entry)
+-- TODO: Create Dropdown for Notes (with Add New... entry)
+-- TODO: Create Popup menu for Categories: Delete, Rename
+-- TODO: Create Popup menu for Note: Delete, Rename, Category, Duplicate, Edit
+-- TODO: Create dialog for creating/renaming note
+-- TODO: Create dialog for creating/renaming category
+-- TODO: Create Edit window
 
 -- TODO: Create ShowNotes floating button
 -- TODO: Create animation to show Notes Window and hide ShowNotes button
@@ -31,9 +26,9 @@ local DISPLAY_NAME = "Bloody Notes"
 local ADDON_CMD = ADDON_NAME:lower()
 local ADDON_CMD2 = "bn"
 local ADDON_CMD3 = "bloody"
-local ADDON_GLOBAL_WINDOW = "BloodyNotes_Edit_Window"
+local ADDON_GLOBAL_WINDOW = "BloodyNotes_Window"
 
-local ADDON_VERSION = "0.0.1"
+local ADDON_VERSION = "0.1"
 local bn = LibStub("AceAddon-3.0"):NewAddon(ADDON_NAME, "AceConsole-3.0", "AceEvent-3.0")
 local gui = LibStub("AceGUI-3.0");
 local config = LibStub("AceConfig-3.0")
@@ -52,20 +47,24 @@ end
   Options = {
     -- don't know what options we will need
   }
-  Tree = {
-    {id, value, text, icon, children}*
+  Notes = {
+    {id, value, text, icon, children = {
+      {id, value, text, icon}*
+    }}*
   }
 ]]
 function bn:OnInitialize()
-  self.Status = {Display = {}, EditWindow = {}, CategoryTree = {}, Editor = {}, ShowNotes = {}}
+  self.Status = {NotesWindow = {}, EditWindow = {}, MiniButton = {}}
 
   local name = self:GetName()
   self.db = LibStub("AceDB-3.0"):New(ADDON_DB, {global={}})
 
-  self:InitUI()
+  self:InitNotesWindow()
+  self:InitMiniButton()
+  self:InitEditWindow()
   self:InitChatCommands()
   self:InitOptions()
-
+  self:LoadNotes()
 end
 
 function bn:InitChatCommands()
@@ -84,37 +83,35 @@ function bn:InitOptions()
     handler = self,
     type = "group",
     args = {
-      edit = {
-        type = "execute",
-        order = 1,
-        name = "Toggle Editor",
-        desc = "Show/hide the Edit window",
-        func = function() bn:OnToggleEditWindow() end
-      },
       show = {
         type = "execute",
-        order = 88,
+        order = 1,
+        name = "Show Notes",
+        func = function() bn:ShowNotesWindow() end
+      },
+      mini = {
+        type = "execute",
+        order = 2,
         hidden = true,
         cmdHidden = false,
-        name = "Show Editor",
-        desc = "Show the Edit window",
-        func = function() bn.EditWindow:Show() end
+        name = "Show Mini Button",
+        func = function() bn:ShowMiniButton() end
+      },
+      edit = {
+        type = "execute",
+        order = 3,
+        hidden = true,
+        cmdHidden = false,
+        name = "Edit",
+        desc = "Edit the current Note",
+        func = function() bn:EditCurrentNote() end
       },
       hide = {
         type = "execute",
-        order = 87,
-        hidden = true,
-        cmdHidden = false,
-        name = "Hide Editor",
-        desc = "Hide the Edit window",
-        func = function() bn.EditWindow:Hide() end
-      },
-      notes = {
-        type = "execute",
-        order = 2,
-        name = "Toggle Notes",
-        desc = "Show/hide the bloody Bloody Notes notes",
-        func = function() bn:OnToggleNotesWindow() end
+        order = 4,
+        name = "Hide all",
+        desc = "Hides both the Notes window and the Mini Button",
+        func = function() bn:HideAll() end
       },
       help = {
         type = "execute",
@@ -133,80 +130,99 @@ function bn:InitOptions()
   
 end
 
-function bn:InitUI()
+function bn:InitNotesWindow()
 	local window = gui:Create("Window")
 	window:SetTitle(DISPLAY_NAME)
-	window:SetLayout("Flow")
-  window:SetStatusTable(self.Status.EditWindow)
-  window:SetWidth(600)
+	window:SetLayout("List")
+  window:SetStatusTable(self.Status.NotesWindow)
+  window:SetWidth(250)
   window:SetHeight(400)
-	window:Hide()
-	self.EditWindow = window
+	--window:Hide()
+	self.NotesWindow = window
 
-  window.frame:SetMinResize(600, 400)
+  window.frame:SetMinResize(250, 400)
 	window.frame:SetFrameStrata("HIGH")
   window.frame:SetFrameLevel(1)
   
-  local tree = gui:Create("TreeGroup")
-  tree:SetFullWidth(true)
-  tree:SetFullHeight(true)
-  tree:SetStatusTable(self.Status.CategoryTree)
-  window:AddChild(tree)
-  self.CategoryTree = tree
+  local cats = gui:Create("Dropdown");
+  cats:SetFullWidth(true)
+  window:AddChild(cats);
+  self.CategoryDropdown = cats
 
-  tree:SetLayout("Flow")
+  local notes = gui:Create("Dropdown")
+  notes:SetFullWidth(true)
+  window:AddChild(notes)
+  self.NotesDropdown = notes
 
-  local pageName = gui:Create("EditBox")
-  pageName:SetLabel("Title")
-  pageName:SetFullWidth(true)
-  pageName:DisableButton(true)
-  tree:AddChild(pageName)
-
-  local pageText = gui:Create("MultiLineEditBox")
-  pageText:SetLabel("Bloody Note")
-  pageText:SetFullWidth(true)
-  pageText:DisableButton(true)
-  pageText:SetNumLines(15)
-  tree:AddChild(pageText)
-
-  local buttons = gui:Create("SimpleGroup")
-  buttons:SetLayout("Flow")
-  buttons:SetFullWidth(true)
-  buttons:SetHeight(38)
-  tree:AddChild(buttons)
+  --[[
+  local grp = CreateFrame("Frame", nil, window.frame)
+  local pos = window.frame:GetTop() - notes.frame:GetBottom() + 8
+  grp:SetPoint("TOPLEFT", 12, -pos)
+  grp:SetPoint("BOTTOMRIGHT", -12, 12)
+  self:Print("ScrollFrame.top:", grp:GetTop())
+  grp:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background" })
+  grp:SetBackdropColor( 0.616, 0.149, 0.114, 0.9)
+  self.ScrollContainer = grp
 
 
-  local newCategory = gui:Create("Button")
-  newCategory:SetText("Add Category")
-  newCategory:SetRelativeWidth(0.35)
-  newCategory:SetHeight(30)
-  buttons:AddChild(newCategory)
+  -- the message frame
+  local MAX_LINES = 500
 
-  local newNote = gui:Create("Button")
-  newNote:SetText("Add Note")
-  newNote:SetRelativeWidth(0.25)
-  newNote:SetHeight(30)
-  buttons:AddChild(newNote)
-
-  local spacer = gui:Create("Label")
-  spacer:SetRelativeWidth(0.15)
-  buttons:AddChild(spacer)
-
-  local saveNote = gui:Create("Button")
-  saveNote:SetText("Save Note")
-  saveNote:SetRelativeWidth(0.25)
-  saveNote:SetHeight(30)
-  buttons:AddChild(saveNote)
+  local msg = CreateFrame("ScrollingMessageFrame", nil, grp)
+  msg:SetPoint("TOPLEFT", 8, 0)
+  msg:SetPoint("BOTTOMRIGHT", -24, 8)
+  msg:SetInsertMode(SCROLLING_MESSAGE_FRAME_INSERT_MODE_TOP)
+  msg:SetMaxLines(MAX_LINES)
+  msg:SetFading(false)
+  msg:SetIndentedWordWrap(true)
+  msg:SetFontObject(ChatFontNormal)
+  msg:SetJustifyH("LEFT")
   
+  
+  -- the scroll bar
+  local scroll = CreateFrame("ScrollFrame", nil, grp, "FauxScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT", 8, 0)
+  scroll:SetPoint("BOTTOMRIGHT", -24, 8)
+
+  function scroll:OnUpdate()
+    local offset = FauxScrollFrame_GetOffset(self)
+    msg:SetScrollOffset(offset)
+    FauxScrollFrame_Update(self, MAX_LINES, 25, 12 )
+  end
+
+  function scroll:OnVerticalScroll(offset)
+    FauxScrollFrame_OnVerticalScroll(self, offset, 12, scroll.OnUpdate)
+  end
+
+  scroll:SetScript("OnVerticalScroll", scroll.OnVerticalScroll) 
 
 
+  self.MessageFrame = msg
+  self.ScrollFrame = scroll
+  ]]
 
-
+  local html = CreateFrame("SimpleHtml", nil, window.frame)
+  local pos = window.frame:GetTop() - notes.frame:GetBottom() + 8
+  html:SetPoint("TOPLEFT", 12, -pos)
+  html:SetPoint("BOTTOMRIGHT", -12, 12)
+  html:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background" })
+  html:SetBackdropColor( 0.616, 0.149, 0.114, 0.9)
+  html:SetFontObject("GameFontNormal")
+  self.Html = html
 
   --self:MakeSpecialFrame(window.frame, ADDON_GLOBAL_WINDOW)
 
   return self
-end -- bn:InitUI
+end -- bn:InitNotesWindow
+
+function bn:InitMiniButton()
+
+end
+
+function bn:InitEditWindow()
+
+end
+
 
 function bn:MakeSpecialFrame(frame, name)
   --makes window closeable with ESC
@@ -217,7 +233,7 @@ function bn:MakeSpecialFrame(frame, name)
 end
 
 
-function bn:InitNotesFrame()
+function bn:InitNotesWindowRef()
     local backdrop = {
       bgFile = "Interface/BUTTONS/WHITE8X8",
       edgeFile = "Interface/GLUES/Common/Glue-Tooltip-Border",
@@ -281,14 +297,50 @@ function bn:InitNotesFrame()
       FauxScrollFrame_Update(f.Scroll, i, 30, 12 )
   end
 
-end -- bn:InitNotesFrame
+end -- bn:InitNotesWindow
 
-function bn:OnGroupSelected(widget, event, value)
+function bn:CreateDialog(Options)
+  local name = Options.Name
+  if not StaticPopupDialogs[name] then
+    local function OnAccept(ref)
+      local Text = ref:GetParent().editBox:GetText()
+      if Text ~= "" then Options.OnAccept(Text) end
+    end
+    StaticPopupDialogs[name] = {
+      button1 = OKAY,
+      button2 = CANCEL,
+      OnAccept = OnAccept,
+      EditBoxOnEnterPressed = function(ref)
+        OnAccept(ref)
+        ref:GetParent():Hide()
+      end,
+      text = Options.Text,
+      hasEditBox = true,
+      whileDead = true,
+      hideOnEscape = true,
+      preferredIndex = Options.PreferredIndex
+    }
+  end
+end
+
+
+function bn:EditCategoryName(Category)
+  StaticPopup_Show(ADDON_CATEGORY_DIALOG)
+end
+
+
+function bn:EditNoteTitle()
+  self:CreateDialog({Name=ADDON_PAGE_DIALOG })
+  StaticPopup_Show(ADDON_PAGE_DIALOG)
+end
+
+
+function bn:OnNoteSelected(widget, event, value)
   self:Print("OnGroupSelected", widget)
   return self
 end
 
-function bn:OnCategoryTreeClick(...)
+function bn:OnCategoySelected(...)
   self:Print("OnCategoryTreeClick")
   return self
 end
@@ -302,42 +354,49 @@ function bn:OnChatCommand(Text)
 end
 
 
-function bn:OnToggleEditWindow()
-  if self.EditWindow:IsShown() then
-    self.EditWindow:Hide()
-  else
-    self.EditWindow:Show()
-  end
+function bn:ShowNotesWindow()
+  self.NotesWindow:Show();
+  self.MiniButton:Hide();
 end
 
-function bn:OnToggleNotesWindow()
-  if self.NotesWindow:IsShown() then
-    self.NotesWindow:Hide()
-  else
-    self.NotesWindow:Show()
-  end
+function bn:ShowMiniButton()
+  self.MiniButton:Show();
+  self.NotesWindow:Hide();
+end
+
+function bn:HideAll()
+  self.NotesWindow:Hide()
+  self.MiniButton:Hide()
 end
 
 
-local function HandleMouseDown()
+function bn:EditCurrentNote()
+  -- TODO: get the selectedd note, if any
+  -- load it into the edit window
+  self.EditWindow:Show()
+end
+
+
+function bn:LoadNotes()
+  self.CategoryDropdown:SetList({
+    k1 = "Category 1",
+    k2 = "Category 2",
+    k3 = "Category 3",
+    k4 = "Category 4",
+    k5 = "Category 5"
+  })
+
+  self.NotesDropdown:SetList({
+    k1 = "Note 1",
+    k2 = "Note 2",
+    k3 = "Note 3",
+    k4 = "Note 4",
+    k5 = "Note 5"
+  })
 
 end
 
-local function HandleShow()
 
-end
-
-local function HandleHide()
-
-end
-
-local function HandleMouseUp()
-
-end
-
-local function HandleMovingOrSizing()
-
-end
 
 
 
