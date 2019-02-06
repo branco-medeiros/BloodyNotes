@@ -155,7 +155,7 @@ function bn:InitNotesWindow()
   window:SetStatusTable(self.Status.NotesWindow)
   window:SetWidth(250)
   window:SetHeight(400)
-	--window:Hide()
+	window:Hide()
 	self.NotesWindow = window
 
   window.frame:SetMinResize(250, 400)
